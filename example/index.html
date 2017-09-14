@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>JavaScript Speech Recognition</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+
+</head>
+
+<body>
+
+    <!-- Include the WebRTC adapter -->
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <!-- Include jquery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+    <script src="../lib/HotwordSpeechRecognition.js"></script>
+
+    <script>
+
+      var hwr = new HotwordSpeechRecognition({});
+      hwr.onKeywordSpotted = (result) => {
+        $('#testingResultsDiv').text('Listening: ');
+      }
+
+      hwr.onPartialResult = (text) => {
+        $('#testingResultsDiv').text('Listening: ' + text);
+      }
+
+      hwr.onFinalResult = (text) => {
+        $('#testingResultsDiv').text(text);
+      }
+      try {
+        // hwr.setModel('Alexa', JSON.parse(localStorage.alexa));
+      } catch (e) {
+        console.error(e);
+      }
+
+      function saveBuffer() {
+        localStorage.model = JSON.stringify(hwr.getTrainingData());
+      }
+
+      function restoreBuffer() {
+        try {
+          hwr.setTrainingData(JSON.parse(localStorage.model));
+          hwr._hwRecognition.generateModel();
+        } catch(e) {
+        }
+      }
+
+      // hwr.start();
+
+
+        // var speechRec = new JsSpeechRecognizer();
+        // speechRec.openMic();
+
+        $(document).ready(function() {
+            var btnStartStopTraining = $("#startStopRecordingButton");
+            // Add the handler for the button
+            btnStartStopTraining.click(function() {
+                if (!hwr.isRecording()) {
+                    var word = $("#currentWordText").val();
+                    // speechRec.startTrainingRecording(word);
+                    hwr.startTraining(word);
+
+                    // Update the UI
+                    btnStartStopTraining.val("stop training");
+                    btnStartStopTraining.removeClass('btn-primary');
+                    btnStartStopTraining.addClass('btn-danger');
+                    document.getElementById("testingStartStopRecordingButton").disabled = true;
+
+                } else {
+                    // var recordingId = speechRec.stopRecording();
+                    var recordingId = hwr.stopTraining();
+
+                    // Update the UI
+                    btnStartStopTraining.val("start training");
+                    btnStartStopTraining.addClass('btn-primary');
+                    btnStartStopTraining.removeClass('btn-danger');
+                    document.getElementById("testingStartStopRecordingButton").disabled = false;
+
+                    // Append to the results area
+                    var playbackDivId = "playbackResultId" + recordingId;
+                    var playButtonId = "playRecordingButton" + recordingId;
+                    var deleteButtonId = "deleteRecordingButton" + recordingId;
+
+                    var appendHtml = '<div class="row mt-1" id=' + playbackDivId + '><div class="col-sm-8"><p>#' + recordingId;
+                    appendHtml += ' for word <b>' + $("#currentWordText").val() + '</b></p></div>';
+                    appendHtml += '<div class="col-sm-4"><input type="button" class="btn btn-success" value="play" id="' + playButtonId + '"" /> ';
+                    appendHtml += '<input type="button" class="btn btn-danger" value="delete" id="' + deleteButtonId + '" /></div>';
+                    appendHtml += '</div>';
+
+                    $("#resultsDiv").append(appendHtml);
+
+                    // Add the play click functionality
+                    var finalPlaybackId = recordingId - 1;
+                    $("#" + playButtonId).click(function() {
+                        // speechRec.playTrainingBuffer((finalPlaybackId));
+                        hwr.playTrainingBuffer(finalPlaybackId);
+                    });
+
+                    // Add the delete click functionality
+                    $("#" + deleteButtonId).click(function() {
+                        $("#" + playbackDivId).hide();
+                        hwr.deleteTrainingBuffer(finalPlaybackId);
+                        hwr.generateModel();
+                    });
+
+                    // regenerate the model
+                    hwr.generateModel();
+
+                }
+            });
+
+            $("#testingStartStopRecordingButton").click(function() {
+                if (!hwr.isRecording()) {
+                    $("#testingStartStopRecordingButton").val("stop testing");
+                    document.getElementById("startStopRecordingButton").disabled = true;
+
+                    hwr.start();
+                    $('#testingResultsDiv').text('Say the hot word.');
+                } else {
+                    $("#testingStartStopRecordingButton").val("start testing");
+                    document.getElementById("startStopRecordingButton").disabled = false;
+
+                    hwr.stop();
+                    $('#testingResultsDiv').text('');
+                    // var result = speechRec.getTopRecognitionHypotheses(1);
+
+                    // // Format and display results
+                    // for (var i = 0; i < result.length; i++) {
+                    //     result[i].confidence = result[i].confidence.toFixed(3);
+                    // }
+
+                    // $("#testingResultsDiv").html("<h3>\"" + result[0].match + "\" - confidence: " + result[0].confidence + " </h3>");
+                }
+            });
+
+            $('#saveButton').click(saveBuffer);
+            $('#loadButton').click(restoreBuffer);
+
+        });
+    </script>
+
+    <div class="container">
+        <div class="row" style="margin-top: 5%">
+            <div class="col">
+                <h2>Training</h2>
+                <form class="form-inline">
+                    <div class="form-group mx-sm-1">
+                      <label for="currentWordText" class="sr-only">Hotword</label>
+                      <input type="text" class="form-control" id="currentWordText" placeholder="Word">
+                    </div>
+                    <input type="button" id="startStopRecordingButton" class="btn btn-primary mx-sm-1" value="Start Training" />
+                    <input type="button" id="loadButton" class="btn btn-secondary mx-sm-1" value="Load" />
+                    <input type="button" id="saveButton" class="btn btn-secondary mx-sm-1" value="Save" />
+                  </form>
+
+                <p>&nbsp;</p>
+                <div id="resultsDiv">
+                </div>
+            </div>
+
+            <div class="col">
+                <h2>Testing</h2>
+                <div>
+                    <input class="btn btn-primary" id="testingStartStopRecordingButton" type="button" value="start testing" />
+                </div>
+                <div class="mt-3" id="testingResultsDiv"></div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
